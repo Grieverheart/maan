@@ -5,6 +5,7 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
+#include <functional>
 
 int lua_ClassProperty(lua_State* L){
     return 0;
@@ -15,8 +16,8 @@ void* operator new(std::size_t size, lua_State* L){
 }
 
 template<class T, typename ...arg_types>
-void create_LuaObject(lua_State* L, arg_types ...args){
-    new(L) T(args...);
+T* create_LuaObject(lua_State* L, arg_types ...args){
+    return new(L) T(args...);
 }
 
 /*--------------------------tuple argument unpacking--------------------------*/
@@ -66,7 +67,7 @@ public:
         name_(name), L_(L)
     {
         lua_newtable(L_);
-        lua_pushvalue(L_, 1);
+        lua_pushvalue(L_, -1);
         metatable_ref_ = luaL_ref(L_, LUA_REGISTRYINDEX);
 
         lua_pushstring(L_, "__index");
@@ -90,15 +91,37 @@ public:
     class_& def_readwrite(const char* name, M type_::*var_ptr){
         lua_pushstring(L_, name);
 
-        ptrdiff_t member_offset = reinterpret_cast<ptrdiff_t>(&(((type_*)0)->*var_ptr));
+        auto getter = new std::function<M(type_*)>([var_ptr](type_* object) -> M {
+            return object->*var_ptr;
+        });
 
-        lua_pushinteger(L_, member_offset);
+        auto setter = new std::function<void(type_*, M)>([var_ptr](type_* object, const M& val){
+            object->*var_ptr = val;
+        });
+
+        lua_pushlightuserdata(L_, static_cast<void*>(getter));
         lua_pushcclosure(L_, get_var<M>, 1);
 
-        lua_pushinteger(L_, member_offset);
+        lua_pushlightuserdata(L_, static_cast<void*>(setter));
         lua_pushcclosure(L_, set_var<M>, 1);
 
         lua_pushcclosure(L_, lua_ClassProperty, 2);
+        lua_rawset(L_, -3);
+        return *this;
+    }
+
+    template<class M>
+    class_& def_readonly(const char* name, M type_::*var_ptr){
+        lua_pushstring(L_, name);
+
+        auto getter = new std::function<M(type_*)>([var_ptr](type_* object) -> M {
+            return object->*var_ptr;
+        });
+
+        lua_pushlightuserdata(L_, static_cast<void*>(getter));
+        lua_pushcclosure(L_, get_var<M>, 1);
+
+        lua_pushcclosure(L_, lua_ClassProperty, 1);
         lua_rawset(L_, -3);
         return *this;
     }
@@ -118,21 +141,20 @@ public:
     template<class M>
     static int get_var(lua_State* L){
         type_* object = static_cast<type_*>(lua_touserdata(L, 1));
-        auto var_ptr = reinterpret_cast<M*>(object + lua_tointeger(L, lua_upvalueindex(1))); //ERROR: Not Working
-        lua_pushnumber(L, *var_ptr);
+        auto getter = *static_cast<std::function<M(type_*)>*>(lua_touserdata(L, lua_upvalueindex(1))); //ERROR: Not Working
+        lua_pushnumber(L, getter(object));
         return 1;
     }
 
     template<class M>
     static int set_var(lua_State* L){
         type_* object = static_cast<type_*>(lua_touserdata(L, 1));
-        auto var_ptr = reinterpret_cast<M*>(object + lua_tointeger(L, lua_upvalueindex(1)));
-        *var_ptr = static_cast<M>(luaL_checknumber(L, 2));
+        auto setter = *static_cast<std::function<void(type_*, M)>*>(lua_touserdata(L, lua_upvalueindex(1))); //ERROR: Not Working
+        setter(object, luaL_checknumber(L, 2));
         return 0;
     }
 
-    static int __index(lua_State* L){                                      //userdata, index
-        printf("%s, %d\n", lua_tostring(L, 2), lua_gettop(L));      //
+    static int __index(lua_State* L){                               //userdata, index
         lua_getmetatable(L, 1);                                     //userdata, index, metatable
         lua_pushvalue(L, 2);                                        //userdata, index, metatable, index
         lua_rawget(L, -2);                                          //userdata, index, metatable[index]
@@ -146,15 +168,14 @@ public:
         return 1;
     }
 
-    static int __newindex(lua_State* L){
-        printf("%s, %d\n", lua_tostring(L, 2), lua_gettop(L));
-        lua_getmetatable(L, 1);
-        lua_pushvalue(L, 2);
-        lua_rawget(L, -2);
-        if(lua_isnil(L, -1)){
-            lua_pop(L, 1);
-            lua_insert(L, 2);
-            lua_rawset(L, -3);
+    static int __newindex(lua_State* L){                        //userdata, index, value
+        lua_getmetatable(L, 1);                                 //userdata, index, value, metatable
+        lua_pushvalue(L, 2);                                    //userdata, index, value, metatable, index
+        lua_rawget(L, -2);                                      //userdata, index, value, metatable, metatable[index]
+        if(lua_isnil(L, -1)){                                   //
+            lua_pop(L, 1);                                      //userdata, index, value, metatable
+            lua_insert(L, 2);                                   //userdata, metatable, index, value
+            lua_rawset(L, -3);                                  //userdata, metatable[index] = value
             return 0;
         }
         
@@ -178,7 +199,19 @@ private:
     int metatable_ref_;
     lua_State* L_;
 };
-    
+
+//template<class T>
+//void function_(lua_State* L, T* func, const char* name){
+//    create_LuaObject<std::function<T>>(L, func);  //..., userdata
+//    lua_newtable(L);                              //..., userdata, table
+//    lua_pushvalue(L, -1);                         //..., userdata, table, table
+//    lua_setmetatable(L, -3);                      //..., userdata, table
+//
+//    lua_pushinteger(L, metatable_ref_);
+//    lua_pushcclosure(L, (constructor<ArgsT...>), 1);
+//    lua_setglobal(L, name);
+//}
+
 class Point{
 public:
     Point(double x, double y):
@@ -187,6 +220,10 @@ public:
     
     double x, y;
 };
+
+double sum(double x, double y){
+    return x + y;
+}
 
 int main(int argc, char* argv[]){
     
@@ -197,6 +234,8 @@ int main(int argc, char* argv[]){
         .def_constructor<double, double>()
         .def_readwrite("x", &Point::x)
         .def_readwrite("y", &Point::y);
+
+    function_(L, sum, "sum");
 
     lua_settop(L, 0);
         
