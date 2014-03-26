@@ -1,62 +1,13 @@
-#include <cstdio>
-#include <new>
-#include <string>
-#include <tuple>
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
-#include <functional>
+#ifndef __CLASS_CREATOR_HPP
+#define __CLASS_CREATOR_HPP
+
+#include "lift.hpp"
+#include "operator_new.hpp"
+#include "function_.hpp"
 
 int lua_ClassProperty(lua_State* L){
     return 0;
 }
-
-void* operator new(std::size_t size, lua_State* L){
-    return lua_newuserdata(L, size);
-}
-
-template<class T, typename ...arg_types>
-T* create_LuaObject(lua_State* L, arg_types ...args){
-    return new(L) T(args...);
-}
-
-/*--------------------------tuple argument unpacking--------------------------*/
-
-template<int ...> struct sequence{};
-template<int N, int ...S> struct generator: generator<N - 1, N - 1, S...>{};
-template<int ...S> struct generator<0, S...>{typedef sequence<S...> type;};
-
-template<typename Sequence>
-struct apply_tuple_impl;
-
-template<template<int...> class Sequence, int... Indices>
-struct apply_tuple_impl<Sequence<Indices...>>{
-    template<class F, typename... ArgsT>
-    static auto apply_tuple(F&& func, std::tuple<ArgsT...>&& args) -> typename std::result_of<F(ArgsT...)>::type {
-        return func(std::forward<ArgsT>(std::get<Indices>(args))...);
-    }
-    template<class F, class U, typename... ArgsT>
-    static auto apply_tuple(F&& func, U&& arg, std::tuple<ArgsT...>&& args) -> typename std::result_of<F(U, ArgsT...)>::type {
-        return func(std::forward<U>(arg), std::forward<ArgsT>(std::get<Indices>(args))...);
-    }
-};
-
-template<
-    class F, typename... ArgsT,
-    typename Sequence = typename generator<sizeof...(ArgsT)>::type
->
-auto apply_tuple(F&& func, std::tuple<ArgsT...>&& args) -> typename std::result_of<F(ArgsT...)>::type {
-    return apply_tuple_impl<Sequence>::apply_tuple(std::forward<F>(func), std::forward<std::tuple<ArgsT...>>(args));
-}
-
-template<
-    class F, class U, typename... ArgsT,
-    typename Sequence = typename generator<sizeof...(ArgsT)>::type
->
-auto apply_tuple(F&& func, U&& arg, std::tuple<ArgsT...>&& args) -> typename std::result_of<F(U, ArgsT...)>::type {
-    return apply_tuple_impl<Sequence>::apply_tuple(std::forward<F>(func), std::forward<U>(arg), std::forward<std::tuple<ArgsT...>>(args));
-}
-/*----------------------------------------------------------------------------*/
 
 template<class T>
 class class_{
@@ -91,22 +42,22 @@ public:
     class_& def_readwrite(const char* name, M type_::*var_ptr){
         lua_pushstring(L_, name);
 
-        auto getter = new std::function<M(type_*)>([var_ptr](type_* object) -> M {
+        auto getter = std::function<M(type_*)>([var_ptr](type_* object) -> M {
             return object->*var_ptr;
         });
-
-        auto setter = new std::function<void(type_*, M)>([var_ptr](type_* object, const M& val){
+        auto setter = std::function<void(type_*, M)>([var_ptr](type_* object, const M& val){
             object->*var_ptr = val;
         });
 
-        lua_pushlightuserdata(L_, static_cast<void*>(getter));
+        create_LuaFunction(L_, getter);
         lua_pushcclosure(L_, get_var<M>, 1);
 
-        lua_pushlightuserdata(L_, static_cast<void*>(setter));
+        create_LuaFunction(L_, setter);
         lua_pushcclosure(L_, set_var<M>, 1);
 
         lua_pushcclosure(L_, lua_ClassProperty, 2);
         lua_rawset(L_, -3);
+
         return *this;
     }
 
@@ -129,10 +80,7 @@ public:
     template<typename ...ArgsT>
     static int constructor(lua_State* L){
         int metatable_ref = lua_tointeger(L, lua_upvalueindex(1));
-        std::tuple<ArgsT...> args;
-        std::get<0>(args) = luaL_checknumber(L, 1);
-        std::get<1>(args) = luaL_checknumber(L, 2);
-        apply_tuple(create_LuaObject<type_, ArgsT...>, L, std::move(args));
+        lift(create_LuaObject<type_, ArgsT...>, L, get_args<ArgsT...>(L));
         lua_rawgeti(L, LUA_REGISTRYINDEX, metatable_ref);
         lua_setmetatable(L, -2);
         return 1;
@@ -200,48 +148,4 @@ private:
     lua_State* L_;
 };
 
-//template<class T>
-//void function_(lua_State* L, T* func, const char* name){
-//    create_LuaObject<std::function<T>>(L, func);  //..., userdata
-//    lua_newtable(L);                              //..., userdata, table
-//    lua_pushvalue(L, -1);                         //..., userdata, table, table
-//    lua_setmetatable(L, -3);                      //..., userdata, table
-//
-//    lua_pushinteger(L, metatable_ref_);
-//    lua_pushcclosure(L, (constructor<ArgsT...>), 1);
-//    lua_setglobal(L, name);
-//}
-
-class Point{
-public:
-    Point(double x, double y):
-        x(x), y(y)
-    {}
-    
-    double x, y;
-};
-
-double sum(double x, double y){
-    return x + y;
-}
-
-int main(int argc, char* argv[]){
-    
-    lua_State* L = luaL_newstate();
-    luaL_openlibs(L);
-
-    class_<Point>(L, "Point")
-        .def_constructor<double, double>()
-        .def_readwrite("x", &Point::x)
-        .def_readwrite("y", &Point::y);
-
-    function_(L, sum, "sum");
-
-    lua_settop(L, 0);
-        
-    luaL_dofile(L, "test.lua");
-    
-    lua_close(L);
-    
-    return 0;
-}
+#endif
