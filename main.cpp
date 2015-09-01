@@ -1,9 +1,11 @@
 #include <cstdio>
 #include <cmath>
 
+extern "C"{
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
+}
 
 #include "function_.hpp"
 #include "class_.hpp"
