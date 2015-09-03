@@ -16,6 +16,10 @@ public:
     Point(double x, double y):
         x(x), y(y)
     {}
+
+    double norm(void)const{
+        return sqrt(x * x + y * y);
+    }
     
     double x, y;
 };
@@ -29,10 +33,6 @@ public:
     glm::vec3 foo_;
 };
 
-double norm(double x, double y, double z){
-    return sqrt(x * x + y * y + z * z);
-}
-
 double pointNorm(Point p){
     return sqrt(p.x * p.x + p.y * p.y);
 }
@@ -45,7 +45,8 @@ int main(int argc, char* argv[]){
     class_<Point>(L, "Point")
         .def_constructor<double, double>()
         .def_readwrite("x", &Point::x)
-        .def_readwrite("y", &Point::y);
+        .def_readwrite("y", &Point::y)
+        .def("norm", &Point::norm);
 
     class_<glm::vec3>(L, "vec3")
         .def_constructor<float, float, float>()
@@ -57,7 +58,6 @@ int main(int argc, char* argv[]){
         .def_constructor<const glm::vec3&>()
         .def_readwrite("foo_", &Foo::foo_);
 
-    function_(L, "norm", norm);
     function_(L, "pointNorm", pointNorm);
     lua_settop(L, 0);
         

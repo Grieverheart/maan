@@ -42,6 +42,44 @@ public:
         return *this;
     }
 
+    template<typename R, typename ...ArgsT, typename F = R(ArgsT...)>
+    class_& def(const char* name, R (type_::*fun_ptr)(ArgsT...)){
+        std::function<std::function<F>(type_*)> temp = [=](type_* object) -> std::function<F> {
+            return [fun_ptr, object](ArgsT... args) -> R {
+                return (object->*fun_ptr)(args...);
+            };
+        };
+
+        luaL_Reg funcs[] = {
+            {name, call_member<R, ArgsT...>},
+            {NULL, NULL}
+        };
+
+        create_LuaFunction(L_, temp);
+        luaL_setfuncs(L_, funcs, 1);
+
+        return *this;
+    }
+
+    template<typename R, typename ...ArgsT, typename F = R(ArgsT...)>
+    class_& def(const char* name, R (type_::*fun_ptr)(ArgsT...)const){
+        std::function<std::function<F>(type_*)> temp = [=](const type_* object) -> std::function<F> {
+            return [fun_ptr, object](ArgsT... args) -> R {
+                return (object->*fun_ptr)(args...);
+            };
+        };
+
+        luaL_Reg funcs[] = {
+            {name, call_member<R, ArgsT...>},
+            {NULL, NULL}
+        };
+
+        create_LuaFunction(L_, temp);
+        luaL_setfuncs(L_, funcs, 1);
+
+        return *this;
+    }
+
     template<class M>
     class_& def_readwrite(const char* name, M type_::*var_ptr){
         lua_pushstring(L_, name);
@@ -70,11 +108,11 @@ public:
     class_& def_readonly(const char* name, M type_::*var_ptr){
         lua_pushstring(L_, name);
 
-        auto getter = new std::function<M(type_*)>([var_ptr](type_* object) -> M {
+        auto getter = std::function<M(type_*)>([var_ptr](type_* object) -> M {
             return object->*var_ptr;
         });
 
-        lua_pushlightuserdata(L_, static_cast<void*>(getter));
+        create_LuaFunction(L_, getter);
         lua_pushcclosure(L_, get_var<M>, 1);
 
         lua_pushcclosure(L_, lua_ClassProperty, 1);
@@ -87,6 +125,16 @@ public:
         lift(create_LuaObject<type_, ArgsT...>, L, get_args<ArgsT...>(L));
         lua_rawgetp(L, LUA_REGISTRYINDEX, ClassInfo<type_>::get_metatable_key());
         lua_setmetatable(L, -2);
+        return 1;
+    }
+
+
+    template<typename R, typename ...ArgsT>
+    static int call_member(lua_State* L){
+        type_* object = static_cast<type_*>(lua_touserdata(L, 1));
+        auto func = *static_cast<std::function<std::function<R(ArgsT...)>(type_*)>*>(lua_touserdata(L, lua_upvalueindex(1))); //ERROR: Not Working
+        auto result = lift(func(object), get_args<ArgsT...>(L));
+        push_LuaValue(L, result);
         return 1;
     }
 
