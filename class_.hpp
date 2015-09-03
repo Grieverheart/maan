@@ -5,6 +5,7 @@
 #include "operator_new.hpp"
 #include "function_.hpp"
 #include "class_info.hpp"
+#include "__gc.hpp"
 
 int lua_ClassProperty(lua_State* L){
     return 0;
@@ -35,6 +36,10 @@ public:
         lua_pushstring(L_, "__newindex");
         lua_pushcfunction(L_, __newindex);
         lua_rawset(L_, -3);
+
+        lua_pushstring(L, "__gc");
+        lua_pushcfunction(L, __gc<T>);
+        lua_rawset(L, -3);
 
         lua_pushstring(L_, "__name");
         lua_pushstring(L_, name_);
