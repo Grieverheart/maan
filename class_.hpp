@@ -4,6 +4,7 @@
 #include "lift.hpp"
 #include "operator_new.hpp"
 #include "function_.hpp"
+#include "class_info.hpp"
 
 int lua_ClassProperty(lua_State* L){
     return 0;
@@ -19,21 +20,24 @@ public:
     {
         lua_newtable(L_);
         lua_pushvalue(L_, -1);
-        metatable_ref_ = luaL_ref(L_, LUA_REGISTRYINDEX);
+        lua_rawsetp(L_, LUA_REGISTRYINDEX, ClassInfo<T>::get_metatable_key());
 
         lua_pushstring(L_, "__index");
         lua_pushcfunction(L_, __index);
         lua_rawset(L_, -3);
-        
+
         lua_pushstring(L_, "__newindex");
         lua_pushcfunction(L_, __newindex);
+        lua_rawset(L_, -3);
+
+        lua_pushstring(L_, "__name");
+        lua_pushstring(L_, name_);
         lua_rawset(L_, -3);
     }
 
     template<typename ...ArgsT>
     class_& def_constructor(void){
-        lua_pushinteger(L_, metatable_ref_);
-        lua_pushcclosure(L_, (constructor<ArgsT...>), 1);
+        lua_pushcfunction(L_, (constructor<ArgsT...>));
         lua_setglobal(L_, name_);
         return *this;
     }
@@ -45,7 +49,8 @@ public:
         auto getter = std::function<M(type_*)>([var_ptr](type_* object) -> M {
             return object->*var_ptr;
         });
-        auto setter = std::function<void(type_*, M)>([var_ptr](type_* object, const M& val){
+
+        auto setter = std::function<void(type_*, const M&)>([var_ptr](type_* object, const M& val){
             object->*var_ptr = val;
         });
 
@@ -76,12 +81,11 @@ public:
         lua_rawset(L_, -3);
         return *this;
     }
-    
+
     template<typename ...ArgsT>
     static int constructor(lua_State* L){
-        int metatable_ref = lua_tointeger(L, lua_upvalueindex(1));
         lift(create_LuaObject<type_, ArgsT...>, L, get_args<ArgsT...>(L));
-        lua_rawgeti(L, LUA_REGISTRYINDEX, metatable_ref);
+        lua_rawgetp(L, LUA_REGISTRYINDEX, ClassInfo<type_>::get_metatable_key());
         lua_setmetatable(L, -2);
         return 1;
     }
@@ -90,7 +94,7 @@ public:
     static int get_var(lua_State* L){
         type_* object = static_cast<type_*>(lua_touserdata(L, 1));
         auto getter = *static_cast<std::function<M(type_*)>*>(lua_touserdata(L, lua_upvalueindex(1))); //ERROR: Not Working
-        lua_pushnumber(L, getter(object));
+        push_LuaValue(L, getter(object));
         return 1;
     }
 
@@ -98,7 +102,8 @@ public:
     static int set_var(lua_State* L){
         type_* object = static_cast<type_*>(lua_touserdata(L, 1));
         auto setter = *static_cast<std::function<void(type_*, M)>*>(lua_touserdata(L, lua_upvalueindex(1))); //ERROR: Not Working
-        setter(object, luaL_checknumber(L, 2));
+        lua_pop(L, 1);
+        setter(object, get_LuaValue<M>(L));
         return 0;
     }
 
@@ -126,7 +131,7 @@ public:
             lua_rawset(L, -3);                                  //userdata, metatable[index] = value
             return 0;
         }
-        
+
         if(lua_tocfunction(L, -1) == lua_ClassProperty){
             lua_getupvalue(L, -1, 2);
             lua_remove(L, 2);
@@ -135,7 +140,7 @@ public:
             lua_call(L, lua_gettop(L) - 1, 0);
             return 0;
         }
-        
+
         lua_pop(L, 1);
         lua_insert(L, 2);
         lua_rawset(L, 2);
@@ -144,7 +149,6 @@ public:
 
 private:
     const char* name_;
-    int metatable_ref_;
     lua_State* L_;
 };
 

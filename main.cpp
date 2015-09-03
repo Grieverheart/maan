@@ -9,6 +9,7 @@ extern "C"{
 
 #include "function_.hpp"
 #include "class_.hpp"
+#include <glm/glm.hpp>
 
 class Point{
 public:
@@ -17,6 +18,15 @@ public:
     {}
     
     double x, y;
+};
+
+class Foo{
+public:
+    Foo(const glm::vec3& foo):
+        foo_(foo)
+    {}
+
+    glm::vec3 foo_;
 };
 
 double norm(double x, double y, double z){
@@ -37,11 +47,23 @@ int main(int argc, char* argv[]){
         .def_readwrite("x", &Point::x)
         .def_readwrite("y", &Point::y);
 
+    class_<glm::vec3>(L, "vec3")
+        .def_constructor<float, float, float>()
+        .def_readwrite("x", &glm::vec3::x)
+        .def_readwrite("y", &glm::vec3::y)
+        .def_readwrite("z", &glm::vec3::y);
+
+    class_<Foo>(L, "Foo")
+        .def_constructor<const glm::vec3&>()
+        .def_readwrite("foo_", &Foo::foo_);
+
     function_(L, "norm", norm);
     function_(L, "pointNorm", pointNorm);
     lua_settop(L, 0);
         
-    luaL_dofile(L, "test.lua");
+    if(luaL_dofile(L, "test.lua")){
+        printf("There was an error.\n %s\n", lua_tostring(L, -1));
+    }
     
     lua_close(L);
     

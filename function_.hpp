@@ -10,7 +10,7 @@
 
 template<typename...ArgsT>
 std::tuple<ArgsT...> get_args(lua_State* L){
-	return std::make_tuple(get_LuaValue<ArgsT>(L)...);
+	return std::forward_as_tuple(get_LuaValue<ArgsT>(L)...);
 }
 
 template<class T>
