@@ -34,15 +34,15 @@ struct Functor<R(ArgsT...)>{
 template<class T>
 std::function<T>* create_LuaFunction(lua_State* L, std::function<T> func){
     typedef std::function<T> F;
-    F* luaFunc = create_LuaObject<F>(L, func);//..., userdata
-    lua_newtable(L);                          //..., userdata, table
-    lua_pushvalue(L, -1);                     //..., userdata, table, table
-    lua_setmetatable(L, -3);                  //..., userdata, table
+    F* luaFunc = create_LuaObject<F>(L, func);  //..., userdata
+    lua_newtable(L);                            //..., userdata, table
+    lua_pushvalue(L, -1);                       //..., userdata, table, table
+    lua_setmetatable(L, -3);                    //..., userdata, table
 
-    lua_pushstring(L, "__gc");                //..., userdata, table, "__gc"
-    lua_pushcfunction(L, __gc<F>);            //..., userdata, table, "__gc", __gc<T>
-    lua_rawset(L, -3);                        //..., userdata, table
-    lua_pop(L, 1);                            //..., userdata
+    lua_pushstring(L, "__gc");                  //..., userdata, table, "__gc"
+    lua_pushcfunction(L, __gc<F>);              //..., userdata, table, "__gc", __gc<T>
+    lua_rawset(L, -3);                          //..., userdata, table
+    lua_pop(L, 1);                              //..., userdata
 
     return luaFunc;
 }

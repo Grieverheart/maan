@@ -65,7 +65,10 @@ void> push_LuaValue(lua_State* L, T val){
 //TODO: We need to somehow check if the userdata has the correct type
 //One way is to use dynamic cast. Another one is to add a __class tag
 //in the metatable.
-template<class T, typename type_ = typename std::remove_const<typename std::remove_reference<T>::type>::type>
+template<
+    class T,
+    typename type_ = typename std::remove_const<typename std::remove_reference<T>::type>::type
+>
 EnableIf<std::is_class<type_>,
 T> get_LuaValue(lua_State* L){
     //We didn't get a userdatum! Raise error.

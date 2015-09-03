@@ -15,6 +15,12 @@ class class_{
 public:
     using type_ = T;
 
+    ~class_(void){
+        //Since we had the metatable on top of the stack all the time,
+        //we have to pop it
+        lua_pop(L_, 1);
+    }
+
     class_(lua_State* L, const char* name):
         name_(name), L_(L)
     {
@@ -44,8 +50,8 @@ public:
 
     template<typename R, typename ...ArgsT, typename F = R(ArgsT...)>
     class_& def(const char* name, R (type_::*fun_ptr)(ArgsT...)){
-        std::function<std::function<F>(type_*)> temp = [=](type_* object) -> std::function<F> {
-            return [fun_ptr, object](ArgsT... args) -> R {
+        std::function<std::function<F>(type_*)> temp = [=](type_* object){
+            return [fun_ptr, object](ArgsT... args){
                 return (object->*fun_ptr)(args...);
             };
         };
@@ -63,8 +69,8 @@ public:
 
     template<typename R, typename ...ArgsT, typename F = R(ArgsT...)>
     class_& def(const char* name, R (type_::*fun_ptr)(ArgsT...)const){
-        std::function<std::function<F>(type_*)> temp = [=](const type_* object) -> std::function<F> {
-            return [fun_ptr, object](ArgsT... args) -> R {
+        std::function<std::function<F>(type_*)> temp = [=](const type_* object){
+            return [fun_ptr, object](ArgsT... args){
                 return (object->*fun_ptr)(args...);
             };
         };
@@ -84,7 +90,7 @@ public:
     class_& def_readwrite(const char* name, M type_::*var_ptr){
         lua_pushstring(L_, name);
 
-        auto getter = std::function<M(type_*)>([var_ptr](type_* object) -> M {
+        auto getter = std::function<M(type_*)>([var_ptr](type_* object){
             return object->*var_ptr;
         });
 
@@ -108,7 +114,7 @@ public:
     class_& def_readonly(const char* name, M type_::*var_ptr){
         lua_pushstring(L_, name);
 
-        auto getter = std::function<M(type_*)>([var_ptr](type_* object) -> M {
+        auto getter = std::function<M(type_*)>([var_ptr](type_* object){
             return object->*var_ptr;
         });
 
@@ -132,7 +138,9 @@ public:
     template<typename R, typename ...ArgsT>
     static int call_member(lua_State* L){
         type_* object = static_cast<type_*>(lua_touserdata(L, 1));
-        auto func = *static_cast<std::function<std::function<R(ArgsT...)>(type_*)>*>(lua_touserdata(L, lua_upvalueindex(1))); //ERROR: Not Working
+        auto func = *static_cast<std::function<std::function<R(ArgsT...)>(type_*)>*>(
+            lua_touserdata(L, lua_upvalueindex(1))
+        );
         auto result = lift(func(object), get_args<ArgsT...>(L));
         push_LuaValue(L, result);
         return 1;
@@ -141,7 +149,9 @@ public:
     template<class M>
     static int get_var(lua_State* L){
         type_* object = static_cast<type_*>(lua_touserdata(L, 1));
-        auto getter = *static_cast<std::function<M(type_*)>*>(lua_touserdata(L, lua_upvalueindex(1))); //ERROR: Not Working
+        auto getter = *static_cast<std::function<M(type_*)>*>(
+            lua_touserdata(L, lua_upvalueindex(1))
+        );
         push_LuaValue(L, getter(object));
         return 1;
     }
@@ -149,34 +159,36 @@ public:
     template<class M>
     static int set_var(lua_State* L){
         type_* object = static_cast<type_*>(lua_touserdata(L, 1));
-        auto setter = *static_cast<std::function<void(type_*, M)>*>(lua_touserdata(L, lua_upvalueindex(1))); //ERROR: Not Working
+        auto setter = *static_cast<std::function<void(type_*, M)>*>(
+            lua_touserdata(L, lua_upvalueindex(1))
+        );
         lua_pop(L, 1);
         setter(object, get_LuaValue<M>(L));
         return 0;
     }
 
-    static int __index(lua_State* L){                               //userdata, index
-        lua_getmetatable(L, 1);                                     //userdata, index, metatable
-        lua_pushvalue(L, 2);                                        //userdata, index, metatable, index
-        lua_rawget(L, -2);                                          //userdata, index, metatable[index]
-        if(lua_isnil(L, -1)) return 1;                              //
-                                                                    //
-        if(lua_tocfunction(L, -1) == lua_ClassProperty){            //userdata, index, closure
-            lua_getupvalue(L, -1, 1);                               //userdata, index, closure, func_1
-            lua_pushvalue(L, 1);                                    //userdata, index, func, func_1, userdata
+    static int __index(lua_State* L){                     //userdata, index
+        lua_getmetatable(L, 1);                           //userdata, index, metatable
+        lua_pushvalue(L, 2);                              //userdata, index, metatable, index
+        lua_rawget(L, -2);                                //userdata, index, metatable[index]
+        if(lua_isnil(L, -1)) return 1;                    //
+                                                          //
+        if(lua_tocfunction(L, -1) == lua_ClassProperty){  //userdata, index, closure
+            lua_getupvalue(L, -1, 1);                     //userdata, index, closure, func_1
+            lua_pushvalue(L, 1);                          //userdata, index, func, func_1, userdata
             lua_call(L, 1, 1);
         }
         return 1;
     }
 
-    static int __newindex(lua_State* L){                        //userdata, index, value
-        lua_getmetatable(L, 1);                                 //userdata, index, value, metatable
-        lua_pushvalue(L, 2);                                    //userdata, index, value, metatable, index
-        lua_rawget(L, -2);                                      //userdata, index, value, metatable, metatable[index]
-        if(lua_isnil(L, -1)){                                   //
-            lua_pop(L, 1);                                      //userdata, index, value, metatable
-            lua_insert(L, 2);                                   //userdata, metatable, index, value
-            lua_rawset(L, -3);                                  //userdata, metatable[index] = value
+    static int __newindex(lua_State* L){  //userdata, index, value
+        lua_getmetatable(L, 1);           //userdata, index, value, metatable
+        lua_pushvalue(L, 2);              //userdata, index, value, metatable, index
+        lua_rawget(L, -2);                //userdata, index, value, metatable, metatable[index]
+        if(lua_isnil(L, -1)){             //
+            lua_pop(L, 1);                //userdata, index, value, metatable
+            lua_insert(L, 2);             //userdata, metatable, index, value
+            lua_rawset(L, -3);            //userdata, metatable[index] = value
             return 0;
         }
 

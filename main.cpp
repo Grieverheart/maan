@@ -59,7 +59,6 @@ int main(int argc, char* argv[]){
         .def_readwrite("foo_", &Foo::foo_);
 
     function_(L, "pointNorm", pointNorm);
-    lua_settop(L, 0);
         
     if(luaL_dofile(L, "test.lua")){
         printf("There was an error.\n %s\n", lua_tostring(L, -1));
