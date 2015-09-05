@@ -134,8 +134,6 @@ public:
     template<typename ...ArgsT>
     static int constructor(lua_State* L){
         lift(create_LuaObject<type_, ArgsT...>, L, get_args<ArgsT...>(L));
-        lua_rawgetp(L, LUA_REGISTRYINDEX, ClassInfo<type_>::get_metatable_key());
-        lua_setmetatable(L, -2);
         return 1;
     }
 
