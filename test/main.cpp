@@ -7,9 +7,9 @@ extern "C"{
 #include <lualib.h>
 }
 
+#include <glm/glm.hpp>
 #include "function_.hpp"
 #include "class_.hpp"
-#include <glm/glm.hpp>
 
 class Point{
 public:
@@ -38,6 +38,8 @@ double pointNorm(Point p){
 }
 
 int main(int argc, char* argv[]){
+
+    using namespace maan;
     
     lua_State* L = luaL_newstate();
     luaL_openlibs(L);
