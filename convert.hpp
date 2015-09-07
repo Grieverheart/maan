@@ -41,6 +41,10 @@ namespace maan{
         return val;
     }
 
+    void push_LuaValue(lua_State* L, bool val){
+        lua_pushboolean(L, val);
+    }
+
     template<class T>
     EnableIf<std::is_integral<T>,
     void> push_LuaValue(lua_State* L, T val){
@@ -52,6 +56,13 @@ namespace maan{
     EnableIf<std::is_integral<T>,
     T> get_LuaValue(lua_State* L){
         T val = lua_tointeger(L, -1);
+        lua_pop(L, 1);
+        return val;
+    }
+
+    template<>
+    bool get_LuaValue<bool>(lua_State* L){
+        bool val = lua_toboolean(L, -1);
         lua_pop(L, 1);
         return val;
     }

@@ -17,6 +17,12 @@ public:
         x(x), y(y)
     {}
 
+    Point& operator+(const Point& other){
+        x += other.x;
+        y += other.y;
+        return *this;
+    }
+
     double norm(void)const{
         return sqrt(x * x + y * y);
     }
@@ -46,15 +52,19 @@ int main(int argc, char* argv[]){
 
     class_<Point>(L, "Point")
         .def_constructor<double, double>()
+        .def_add()
         .def_readwrite("x", &Point::x)
         .def_readwrite("y", &Point::y)
         .def("norm", &Point::norm);
 
     class_<glm::vec3>(L, "vec3")
         .def_constructor<float, float, float>()
+        .def_add()
+        .def_sub()
+        .def_eq()
         .def_readwrite("x", &glm::vec3::x)
         .def_readwrite("y", &glm::vec3::y)
-        .def_readwrite("z", &glm::vec3::y);
+        .def_readwrite("z", &glm::vec3::z);
 
     class_<Foo>(L, "Foo")
         .def_constructor<const glm::vec3&>()
