@@ -104,6 +104,7 @@ namespace maan{
             return *this;\
         }\
         static int __##name(lua_State* L){\
+            /*TODO: You should use get_LuaValue for type safety.*/\
             type_* object1 = static_cast<type_*>(lua_touserdata(L, 1));\
             type_* object2 = static_cast<type_*>(lua_touserdata(L, 2));\
             push_LuaValue(L, *object1 _op_ *object2);\
@@ -124,13 +125,13 @@ namespace maan{
         //template<class O>\
         //static int __##name(lua_State* L){\
         //    if(lua_isnumber(L, 1)){\
-        //        type_ a = get_LuaValue<type_>(L);\
+        //        type_& a = get_LuaValue<type_>(L);\
         //        O b = get_LuaValue<O>(L);\
-        //        push_LuaValue(L, a _op_ b);\
+        //        push_LuaValue(L, b _op_ a);\
         //    }\
         //    else{\
         //        O b = get_LuaValue<O>(L);\
-        //        type_ a = get_LuaValue<type_>(L);\
+        //        type_& a = get_LuaValue<type_>(L);\
         //        push_LuaValue(L, a _op_ b);\
         //    }\
         //    return 1;\

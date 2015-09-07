@@ -74,9 +74,7 @@ namespace maan{
     }
 
 
-    //TODO: We need to somehow check if the userdata has the correct type
-    //One way is to use dynamic cast. Another one is to add a __class tag
-    //in the metatable.
+    //TODO: Perhaps we should return a reference.
     template<
         class T,
         typename type_ = typename std::remove_const<typename std::remove_reference<T>::type>::type
@@ -115,6 +113,8 @@ namespace maan{
     }
 
 
+    //TODO: These two need reconsidering. i.e. why not lightuserdata?
+    //And if normal userdata, we should check for correct class.
     template<class T>
     EnableIf<std::is_pointer<T>,
     T> get_LuaValue(lua_State* L){
