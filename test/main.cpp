@@ -26,6 +26,10 @@ public:
     double norm(void)const{
         return sqrt(x * x + y * y);
     }
+
+    void print(void)const{
+        printf("%f, %f\n", x, y);
+    }
     
     double x, y;
 };
@@ -55,6 +59,7 @@ int main(int argc, char* argv[]){
         .def_add()
         .def_readwrite("x", &Point::x)
         .def_readwrite("y", &Point::y)
+        .def("print", &Point::print)
         .def("norm", &Point::norm);
 
     class_<glm::vec3>(L, "vec3")

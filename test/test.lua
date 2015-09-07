@@ -1,5 +1,6 @@
 
 local point = Point(1.0, 2.0)
+point:print()
 
 local vec1 = vec3(1.2, -0.4, 0.6)
 local vec2 = vec3(0.6, -0.4, 1.2)
