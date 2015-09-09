@@ -4,12 +4,42 @@
 #include "detail/lift.hpp"
 #include "detail/class_info.hpp"
 #include "detail/__gc.hpp"
+#include "detail/score_args.hpp"
 #include "create.hpp"
 #include "function_.hpp"
 
 namespace maan{
     int lua_ClassProperty(lua_State* L){
         return 0;
+    }
+
+    namespace detail{
+        template<class T, typename...ArgsT>
+        struct OverloadableConstructor: Functor{
+            OverloadableConstructor(void):
+                next_(nullptr)
+            {}
+
+            int call(lua_State* L){
+                lift(create_LuaObject<T, ArgsT...>, L, detail::get_args<ArgsT...>(L));
+                return 1;
+            }
+
+            Functor* get_next(void){
+                return next_;
+            }
+
+            void set_next(Functor* next){
+                next_ = next;
+            }
+
+            int score(lua_State* L){
+                return detail::score_args<ArgsT...>(L);
+            }
+
+            Functor* next_;
+            static const int n_args_ = sizeof...(ArgsT);
+        };
     }
 
     template<class T>
@@ -53,8 +83,25 @@ namespace maan{
 
         template<typename ...ArgsT>
         class_& def_constructor(void){
-            lua_pushcfunction(L_, (constructor<ArgsT...>));
-            lua_setglobal(L_, name_);
+            using F = detail::OverloadableConstructor<type_, ArgsT...>;
+            auto functor = create_LuaGCObject<F>(L_);
+
+            lua_getglobal(L_, name_);
+            if(!lua_isnil(L_, -1)){
+                lua_getupvalue(L_, -1, 1);
+                auto base_functor = static_cast<detail::Functor*>(lua_touserdata(L_, -1));
+                lua_pop(L_, 3);
+                while(base_functor->get_next()){
+                    base_functor = base_functor->get_next();
+                }
+                base_functor->set_next(functor);
+            }
+            else{
+                lua_pop(L_, 1);
+                lua_pushcclosure(L_, detail::call_overloadable_functor, 1);
+                lua_setglobal(L_, name_);
+            }
+
             return *this;
         }
 
@@ -71,7 +118,7 @@ namespace maan{
                 {NULL, NULL}
             };
 
-            detail::create_LuaFunction(L_, temp);
+            create_LuaGCObject(L_, temp);
             luaL_setfuncs(L_, funcs, 1);
 
             return *this;
@@ -90,7 +137,7 @@ namespace maan{
                 {NULL, NULL}
             };
 
-            detail::create_LuaFunction(L_, temp);
+            create_LuaGCObject(L_, temp);
             luaL_setfuncs(L_, funcs, 1);
 
             return *this;
@@ -159,10 +206,10 @@ namespace maan{
                 object->*var_ptr = val;
             });
 
-            detail::create_LuaFunction(L_, getter);
+            create_LuaGCObject(L_, getter);
             lua_pushcclosure(L_, get_var<M>, 1);
 
-            detail::create_LuaFunction(L_, setter);
+            create_LuaGCObject(L_, setter);
             lua_pushcclosure(L_, set_var<M>, 1);
 
             lua_pushcclosure(L_, lua_ClassProperty, 2);
@@ -179,18 +226,12 @@ namespace maan{
                 return object->*var_ptr;
             });
 
-            detail::create_LuaFunction(L_, getter);
+            create_LuaGCObject(L_, getter);
             lua_pushcclosure(L_, get_var<M>, 1);
 
             lua_pushcclosure(L_, lua_ClassProperty, 1);
             lua_rawset(L_, -3);
             return *this;
-        }
-
-        template<typename ...ArgsT>
-        static int constructor(lua_State* L){
-            detail::lift(create_LuaObject<type_, ArgsT...>, L, detail::get_args<ArgsT...>(L));
-            return 1;
         }
 
 

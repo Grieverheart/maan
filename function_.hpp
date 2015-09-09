@@ -7,6 +7,7 @@
 #include "detail/__gc.hpp"
 #include "create.hpp"
 #include "convert.hpp"
+#include "detail/score_args.hpp"
 
 namespace maan{
     namespace detail{
@@ -15,24 +16,31 @@ namespace maan{
             return std::forward_as_tuple(get_LuaValue<ArgsT>(L)...);
         }
 
-        struct OverloadableFunctor{
-            virtual int call(lua_State* L);
-            virtual OverloadableFunctor* get_next(void);
+        struct Functor{
+            virtual int call(lua_State* L) = 0;
+            virtual Functor* get_next(void) = 0;
+            virtual void set_next(Functor*) = 0;
+            virtual int score(lua_State* L) = 0;
         };
 
         static int call_overloadable_functor(lua_State* L){
-            auto func = static_cast<OverloadableFunctor*>(lua_touserdata(L, lua_upvalueindex(1)));
-            return func->call(L);
+            auto func = static_cast<Functor*>(lua_touserdata(L, lua_upvalueindex(1)));
+            //TODO: Need to call the function with the highest score instead.
+            do{
+                if(func->score(L)) return func->call(L);
+            }while((func = func->get_next()));
+            //TODO: Here we should raise an error.
+            return 0;
         }
 
         template<class T>
-        struct Functor;
+        struct OverloadableFunctor;
 
         //TODO: Perhaps we could somehow add a next pointer to chain overloads.
         template<class R, typename...ArgsT>
-        struct Functor<R(ArgsT...)>: OverloadableFunctor{
+        struct OverloadableFunctor<R(ArgsT...)>: Functor{
             using F = std::function<R(ArgsT...)>;
-            Functor(F func):
+            OverloadableFunctor(F func):
                 func_(func), next_(nullptr)
             {}
 
@@ -41,41 +49,65 @@ namespace maan{
                 return 1;
             }
 
-            OverloadableFunctor* get_next(void){
+            Functor* get_next(void){
                 return next_;
             }
 
+            void set_next(Functor* next){
+                next_ = next;
+            }
+
+            int score(lua_State* L){
+                return detail::score_args<ArgsT...>(L);
+            }
+
             F func_;
-            OverloadableFunctor* next_;
+            Functor* next_;
+            static const int n_args_ = sizeof...(ArgsT);
         };
 
-        template<class T>
-        Functor<T>* create_LuaFunction(lua_State* L, std::function<T> func){
-            typedef detail::Functor<T> F;
-            F* luaFunc = create_LuaObject<F>(L, func);  //..., userdata
-            lua_newtable(L);                            //..., userdata, table
-            lua_pushvalue(L, -1);                       //..., userdata, table, table
-            lua_setmetatable(L, -3);                    //..., userdata, table
+        template<typename...ArgsT>
+        struct OverloadableFunctor<void(ArgsT...)>: Functor{
+            using F = std::function<void(ArgsT...)>;
+            OverloadableFunctor(F func):
+                func_(func), next_(nullptr)
+            {}
 
-            lua_pushstring(L, "__gc");                  //..., userdata, table, "__gc"
-            lua_pushcfunction(L, __gc<F>);              //..., userdata, table, "__gc", __gc<T>
-            lua_rawset(L, -3);                          //..., userdata, table
-            lua_pop(L, 1);                              //..., userdata
+            int call(lua_State* L){
+                lift(func_, get_args<ArgsT...>(L));
+                return 0;
+            }
 
-            return luaFunc;
-        }
+            Functor* get_next(void){
+                return next_;
+            }
+
+            void set_next(Functor* next){
+                next_ = next;
+            }
+
+            int score(lua_State* L){
+                return detail::score_args<ArgsT...>(L);
+            }
+
+            F func_;
+            Functor* next_;
+            static const int n_args_ = sizeof...(ArgsT);
+        };
     }
 
     template<class R, typename...ArgsT, typename T = R(ArgsT...)>
     void function_(lua_State* L, const char* name, R (&func)(ArgsT...)){
-        detail::create_LuaFunction<T>(L, func);
+        using F = detail::OverloadableFunctor<T>;
+        create_LuaGCObject<F>(L, std::function<T>(func));
         lua_pushcclosure(L, detail::call_overloadable_functor, 1);
         lua_setglobal(L, name);
     }
 
     template<class R, typename...ArgsT, typename T = R(ArgsT...)>
     void function_(lua_State* L, const char* name, std::function<R(ArgsT...)> func){
-        detail::create_LuaFunction<T>(L, func);
+        using F = detail::OverloadableFunctor<T>;
+        create_LuaGCObject<F>(L, func);
         lua_pushcclosure(L, detail::call_overloadable_functor, 1);
         lua_setglobal(L, name);
     }

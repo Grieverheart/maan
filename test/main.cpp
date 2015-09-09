@@ -17,6 +17,10 @@ public:
         x(x), y(y)
     {}
 
+    Point(double x):
+        x(x), y(x)
+    {}
+
     Point& operator+(const Point& other){
         x += other.x;
         y += other.y;
@@ -47,6 +51,10 @@ double pointNorm(Point p){
     return sqrt(p.x * p.x + p.y * p.y);
 }
 
+void print_something(void){
+    printf("Something!\n");
+}
+
 int main(int argc, char* argv[]){
 
     using namespace maan;
@@ -56,6 +64,7 @@ int main(int argc, char* argv[]){
 
     class_<Point>(L, "Point")
         .def_constructor<double, double>()
+        .def_constructor<double>()
         .def_add()
         .def_readwrite("x", &Point::x)
         .def_readwrite("y", &Point::y)
@@ -64,6 +73,8 @@ int main(int argc, char* argv[]){
 
     class_<glm::vec3>(L, "vec3")
         .def_constructor<float, float, float>()
+        .def_constructor<float>()
+        .def_constructor<glm::vec3>()
         .def_add()
         .def_sub()
         .def_eq()
@@ -76,6 +87,7 @@ int main(int argc, char* argv[]){
         .def_readwrite("foo_", &Foo::foo_);
 
     function_(L, "pointNorm", pointNorm);
+    function_(L, "print_something", print_something);
         
     if(luaL_dofile(L, "test.lua")){
         printf("There was an error.\n %s\n", lua_tostring(L, -1));
