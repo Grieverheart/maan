@@ -99,17 +99,45 @@ namespace maan{
     template<class R, typename...ArgsT, typename T = R(ArgsT...)>
     void function_(lua_State* L, const char* name, R (&func)(ArgsT...)){
         using F = detail::OverloadableFunctor<T>;
-        create_LuaGCObject<F>(L, std::function<T>(func));
-        lua_pushcclosure(L, detail::call_overloadable_functor, 1);
-        lua_setglobal(L, name);
+        auto functor = create_LuaGCObject<F>(L, std::function<T>(func));
+
+        lua_getglobal(L, name);
+        if(!lua_isnil(L, -1)){
+            lua_getupvalue(L, -1, 1);
+            auto base_functor = static_cast<detail::Functor*>(lua_touserdata(L, -1));
+            lua_pop(L, 3);
+            while(base_functor->get_next()){
+                base_functor = base_functor->get_next();
+            }
+            base_functor->set_next(functor);
+        }
+        else{
+            lua_pop(L, 1);
+            lua_pushcclosure(L, detail::call_overloadable_functor, 1);
+            lua_setglobal(L, name);
+        }
     }
 
     template<class R, typename...ArgsT, typename T = R(ArgsT...)>
     void function_(lua_State* L, const char* name, std::function<R(ArgsT...)> func){
         using F = detail::OverloadableFunctor<T>;
-        create_LuaGCObject<F>(L, func);
-        lua_pushcclosure(L, detail::call_overloadable_functor, 1);
-        lua_setglobal(L, name);
+        auto functor = create_LuaGCObject<F>(L, func);
+
+        lua_getglobal(L, name);
+        if(!lua_isnil(L, -1)){
+            lua_getupvalue(L, -1, 1);
+            auto base_functor = static_cast<detail::Functor*>(lua_touserdata(L, -1));
+            lua_pop(L, 3);
+            while(base_functor->get_next()){
+                base_functor = base_functor->get_next();
+            }
+            base_functor->set_next(functor);
+        }
+        else{
+            lua_pop(L, 1);
+            lua_pushcclosure(L, detail::call_overloadable_functor, 1);
+            lua_setglobal(L, name);
+        }
     }
 }
 

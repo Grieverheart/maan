@@ -26,3 +26,5 @@ print(vec.x, vec.y, vec.z)
 print(vec1 == vec2)
 
 print_something()
+print(norm(point), point:norm())
+print(norm(vec1), math.sqrt(vec1.x * vec1.x + vec1.y * vec1.y + vec1.z * vec1.z))

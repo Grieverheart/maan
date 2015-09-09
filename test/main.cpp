@@ -47,8 +47,12 @@ public:
     glm::vec3 foo_;
 };
 
-double pointNorm(Point p){
+double norm(const Point& p){
     return sqrt(p.x * p.x + p.y * p.y);
+}
+
+double norm(const glm::vec3& p){
+    return sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
 }
 
 void print_something(void){
@@ -86,7 +90,8 @@ int main(int argc, char* argv[]){
         .def_constructor<const glm::vec3&>()
         .def_readwrite("foo_", &Foo::foo_);
 
-    function_(L, "pointNorm", pointNorm);
+    function_<double, const Point&>(L, "norm", norm);
+    function_<double, const glm::vec3&>(L, "norm", norm);
     function_(L, "print_something", print_something);
         
     if(luaL_dofile(L, "test.lua")){
