@@ -15,27 +15,43 @@ namespace maan{
             return std::forward_as_tuple(get_LuaValue<ArgsT>(L)...);
         }
 
+        struct OverloadableFunctor{
+            virtual int call(lua_State* L);
+            virtual OverloadableFunctor* get_next(void);
+        };
+
+        static int call_overloadable_functor(lua_State* L){
+            auto func = static_cast<OverloadableFunctor*>(lua_touserdata(L, lua_upvalueindex(1)));
+            return func->call(L);
+        }
+
         template<class T>
         struct Functor;
 
+        //TODO: Perhaps we could somehow add a next pointer to chain overloads.
         template<class R, typename...ArgsT>
-        struct Functor<R(ArgsT...)>{
-            static int call(lua_State* L){
-                typedef std::function<R(ArgsT...)> F;
+        struct Functor<R(ArgsT...)>: OverloadableFunctor{
+            using F = std::function<R(ArgsT...)>;
+            Functor(F func):
+                func_(func), next_(nullptr)
+            {}
 
-                F func = *static_cast<F*>(lua_touserdata(L, lua_upvalueindex(1)));
-
-                auto result = lift(func, get_args<ArgsT...>(L));
-
-                push_LuaValue(L, result);
-
+            int call(lua_State* L){
+                push_LuaValue(L, lift(func_, get_args<ArgsT...>(L)));
                 return 1;
             }
+
+            OverloadableFunctor* get_next(void){
+                return next_;
+            }
+
+            F func_;
+            OverloadableFunctor* next_;
         };
 
         template<class T>
-        std::function<T>* create_LuaFunction(lua_State* L, std::function<T> func){
-            typedef std::function<T> F;
+        Functor<T>* create_LuaFunction(lua_State* L, std::function<T> func){
+            typedef detail::Functor<T> F;
             F* luaFunc = create_LuaObject<F>(L, func);  //..., userdata
             lua_newtable(L);                            //..., userdata, table
             lua_pushvalue(L, -1);                       //..., userdata, table, table
@@ -53,14 +69,14 @@ namespace maan{
     template<class R, typename...ArgsT, typename T = R(ArgsT...)>
     void function_(lua_State* L, const char* name, R (&func)(ArgsT...)){
         detail::create_LuaFunction<T>(L, func);
-        lua_pushcclosure(L, detail::Functor<T>::call, 1);
+        lua_pushcclosure(L, detail::call_overloadable_functor, 1);
         lua_setglobal(L, name);
     }
 
     template<class R, typename...ArgsT, typename T = R(ArgsT...)>
     void function_(lua_State* L, const char* name, std::function<R(ArgsT...)> func){
         detail::create_LuaFunction<T>(L, func);
-        lua_pushcclosure(L, detail::Functor<T>::call, 1);
+        lua_pushcclosure(L, detail::call_overloadable_functor, 1);
         lua_setglobal(L, name);
     }
 }
