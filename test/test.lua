@@ -21,9 +21,13 @@ local point2 = Point(2.0, 1.0)
 point = point + point2
 print(point.x, point.y)
 
-local vec = vec1 - vec2
+local vec = vec1 + vec2
 print(vec.x, vec.y, vec.z)
-print(vec1 == vec2)
+vec = vec1 + 1.0
+print(vec.x, vec.y, vec.z)
+vec = vec1 * 2.0
+print(vec.x, vec.y, vec.z)
+--print(vec1 == vec2)
 
 print_something()
 print(norm(point), point:norm())

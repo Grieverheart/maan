@@ -25,10 +25,16 @@ namespace maan{
 
         static int call_overloadable_functor(lua_State* L){
             auto func = static_cast<Functor*>(lua_touserdata(L, lua_upvalueindex(1)));
-            //TODO: Need to call the function with the highest score instead.
+            decltype(func) max_func;
+            int max = 0;
             do{
-                if(func->score(L)) return func->call(L);
+                int score = func->score(L);
+                if(score > max){
+                    max = score;
+                    max_func = func;
+                }
             }while((func = func->get_next()));
+            if(max > 0) return max_func->call(L);
             //TODO: Here we should raise an error.
             return 0;
         }
