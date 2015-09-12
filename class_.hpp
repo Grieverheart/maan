@@ -95,20 +95,20 @@ namespace maan{
         template<typename ...ArgsT>
         class_& def_constructor(void){
             using F = detail::OverloadableConstructor<type_, ArgsT...>;
-            auto functor = create_LuaGCObject<F>(L_);
 
             lua_getglobal(L_, name_);
             if(!lua_isnil(L_, -1)){
                 lua_getupvalue(L_, -1, 1);
                 auto base_functor = static_cast<detail::Functor*>(lua_touserdata(L_, -1));
-                lua_pop(L_, 3);
+                lua_pop(L_, 2);
                 while(base_functor->get_next()){
                     base_functor = base_functor->get_next();
                 }
-                base_functor->set_next(functor);
+                base_functor->set_next(new F());
             }
             else{
                 lua_pop(L_, 1);
+                create_LuaGCObject<F>(L_);
                 lua_pushcclosure(L_, detail::call_overloadable_functor, 1);
                 lua_setglobal(L_, name_);
             }
@@ -158,21 +158,21 @@ namespace maan{
         template<typename op, typename U>
         class_& def_operator(void){
             using F = OverloadableBinaryOperator<op, U>;
-            auto functor = create_LuaGCObject<F>(L_);
 
             lua_pushstring(L_, op::name);
             lua_rawget(L_, 1);
             if(!lua_isnil(L_, -1)){
                 lua_getupvalue(L_, -1, 1);
                 auto base_functor = static_cast<detail::Functor*>(lua_touserdata(L_, -1));
-                lua_pop(L_, 3);
+                lua_pop(L_, 2);
                 while(base_functor->get_next()){
                     base_functor = base_functor->get_next();
                 }
-                base_functor->set_next(functor);
+                base_functor->set_next(new F());
             }
             else{
                 lua_pop(L_, 1);
+                create_LuaGCObject<F>(L_);
                 lua_pushcclosure(L_, detail::call_overloadable_functor, 1);
                 lua_pushstring(L_, op::name);
                 lua_pushvalue(L_, -2);

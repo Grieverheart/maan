@@ -19,28 +19,26 @@ namespace maan{
     T* create_LuaGCObject(lua_State* L, arg_types ...args){
         auto object = create_LuaObject<T>(L, args...); //..., userdata
         lua_newtable(L);                               //..., userdata, table
-        lua_pushvalue(L, -1);                          //..., userdata, table, table
-        lua_setmetatable(L, -3);                       //..., userdata, table
 
         lua_pushstring(L, "__gc");                     //..., userdata, table, "__gc"
         lua_pushcfunction(L, detail::__gc<T>);         //..., userdata, table, "__gc", __gc<T>
         lua_rawset(L, -3);                             //..., userdata, table
-        lua_pop(L, 1);                                 //..., userdata
+
+        lua_setmetatable(L, -2);                       //..., userdata, table
 
         return object;
     }
 
     template<class T>
     T* create_LuaGCObject(lua_State* L, const T& arg){
-        auto object = create_LuaObject<T>(L, arg); //..., userdata
+        auto object = create_LuaObject<T>(L, arg);     //..., userdata
         lua_newtable(L);                               //..., userdata, table
-        lua_pushvalue(L, -1);                          //..., userdata, table, table
-        lua_setmetatable(L, -3);                       //..., userdata, table
 
         lua_pushstring(L, "__gc");                     //..., userdata, table, "__gc"
         lua_pushcfunction(L, detail::__gc<T>);         //..., userdata, table, "__gc", __gc<T>
         lua_rawset(L, -3);                             //..., userdata, table
-        lua_pop(L, 1);                                 //..., userdata
+
+        lua_setmetatable(L, -2);                       //..., userdata, table
 
         return object;
     }
