@@ -11,6 +11,26 @@
 
 namespace maan{
     namespace detail{
+        //TODO: Perhaps we should change the get_LuaValue functions to accept an
+        //index. This would mean we need a way to index the arguments in the
+        //function below.
+        //namespace shit{
+        //    template<class Sequence, typename...ArgsT>
+        //    struct get_args;
+
+        //    template<template<int...> class Sequence, int...Is, typename...ArgsT>
+        //    struct get_args<Sequence<Is...>, ArgsT...>{
+        //        static std::tuple<ArgsT...> get(lua_State* L){
+        //            return std::forward_as_tuple(get_LuaValue<ArgsT>(L, Is)...);
+        //        }
+        //    };
+        //}
+
+        //template<typename...ArgsT>
+        //std::tuple<ArgsT...> get_args(lua_State* L){
+        //    return shit::get_args<typename detail::generator<sizeof...(ArgsT)>::type, ArgsT...>::get(L);
+        //}
+
         template<typename...ArgsT>
         std::tuple<ArgsT...> get_args(lua_State* L){
             return std::forward_as_tuple(get_LuaValue<ArgsT>(L)...);
