@@ -17,10 +17,22 @@ namespace maan{
         }
 
         struct Functor{
+            Functor(void):
+                next_(nullptr)
+            {}
+
             virtual int call(lua_State* L) = 0;
-            virtual Functor* get_next(void) = 0;
-            virtual void set_next(Functor*) = 0;
             virtual int score(lua_State* L) = 0;
+
+            Functor* get_next(void){
+                return next_;
+            }
+
+            void set_next(Functor* next){
+                next_ = next;
+            }
+
+            Functor* next_;
         };
 
         static int call_overloadable_functor(lua_State* L){
@@ -47,7 +59,7 @@ namespace maan{
         struct OverloadableFunctor<R(ArgsT...)>: Functor{
             using F = std::function<R(ArgsT...)>;
             OverloadableFunctor(F func):
-                func_(func), next_(nullptr)
+                Functor(), func_(func)
             {}
 
             int call(lua_State* L){
@@ -55,20 +67,11 @@ namespace maan{
                 return 1;
             }
 
-            Functor* get_next(void){
-                return next_;
-            }
-
-            void set_next(Functor* next){
-                next_ = next;
-            }
-
             int score(lua_State* L){
                 return detail::score_args<ArgsT...>(L);
             }
 
             F func_;
-            Functor* next_;
             static const int n_args_ = sizeof...(ArgsT);
         };
 
@@ -76,7 +79,7 @@ namespace maan{
         struct OverloadableFunctor<void(ArgsT...)>: Functor{
             using F = std::function<void(ArgsT...)>;
             OverloadableFunctor(F func):
-                func_(func), next_(nullptr)
+                Functor(), func_(func)
             {}
 
             int call(lua_State* L){
@@ -84,20 +87,11 @@ namespace maan{
                 return 0;
             }
 
-            Functor* get_next(void){
-                return next_;
-            }
-
-            void set_next(Functor* next){
-                next_ = next;
-            }
-
             int score(lua_State* L){
                 return detail::score_args<ArgsT...>(L);
             }
 
             F func_;
-            Functor* next_;
             static const int n_args_ = sizeof...(ArgsT);
         };
     }
