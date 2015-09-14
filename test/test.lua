@@ -2,9 +2,9 @@
 local point = Point(1.0, 2.0)
 point:print()
 
-local vec1 = vec3(1.2, -0.4, 0.6)
-local vec2 = vec3(0.6, -0.4, 1.2)
-local vecc = vec3(vec1)
+local vec1 = glm.vec3(1.2, -0.4, 0.6)
+local vec2 = glm.vec3(0.6, -0.4, 1.2)
+local vecc = glm.vec3(vec1)
 
 local foo = Foo(vec1)
 foo.foo_.x = 3

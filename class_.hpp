@@ -96,7 +96,7 @@ namespace maan{
         class_& def_constructor(void){
             using F = detail::OverloadableConstructor<type_, ArgsT...>;
 
-            lua_getglobal(L_, name_);
+            lua_getfield(L_, -2, name_);
             if(!lua_isnil(L_, -1)){
                 lua_getupvalue(L_, -1, 1);
                 auto base_functor = static_cast<detail::Functor*>(lua_touserdata(L_, -1));
@@ -110,7 +110,7 @@ namespace maan{
                 lua_pop(L_, 1);
                 create_LuaGCObject<F>(L_);
                 lua_pushcclosure(L_, detail::call_overloadable_functor, 1);
-                lua_setglobal(L_, name_);
+                lua_setfield(L_, -3, name_);
             }
 
             return *this;
@@ -160,7 +160,7 @@ namespace maan{
             using F = OverloadableBinaryOperator<op, U>;
 
             lua_pushstring(L_, op::name);
-            lua_rawget(L_, 1);
+            lua_rawget(L_, -2);
             if(!lua_isnil(L_, -1)){
                 lua_getupvalue(L_, -1, 1);
                 auto base_functor = static_cast<detail::Functor*>(lua_touserdata(L_, -1));
@@ -176,7 +176,7 @@ namespace maan{
                 lua_pushcclosure(L_, detail::call_overloadable_functor, 1);
                 lua_pushstring(L_, op::name);
                 lua_pushvalue(L_, -2);
-                lua_rawset(L_, 1);
+                lua_rawset(L_, -4);
                 lua_pop(L_, 1);
             }
 
