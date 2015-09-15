@@ -8,9 +8,7 @@ extern "C"{
 }
 
 #include <glm/glm.hpp>
-#include "function_.hpp"
-#include "class_.hpp"
-#include "module_.hpp"
+#include "maan.hpp"
 
 class Point{
 public:
@@ -65,18 +63,25 @@ int main(int argc, char* argv[]){
     lua_State* L = luaL_newstate();
     luaL_openlibs(L);
 
-    begin_module(L);{
-        maan::class_<Point>(L, "Point")
+    maan::module_(L)
+        .class_<Point>("Point")
             .def_constructor<double, double>()
             .def_constructor<double>()
             .def_operator<maan::add, Point>()
             .def_readwrite("x", &Point::x)
             .def_readwrite("y", &Point::y)
             .def("print", &Point::print)
-            .def("norm", &Point::norm);
-
-        begin_module(L, "glm");{
-            maan::class_<glm::vec3>(L, "vec3")
+            .def("norm", &Point::norm)
+            .endef()
+        .class_<Foo>("Foo")
+            .def_constructor<const glm::vec3&>()
+            .def_readwrite("foo_", &Foo::foo_)
+            .endef()
+        .function_("norm", (double (*)(const glm::vec3& p))norm)
+        .function_("norm", (double (*)(const Point& p))norm)
+        .function_("print_something", print_something)
+        .namespace_("glm")
+            .class_<glm::vec3>("vec3")
                 .def_constructor<float, float, float>()
                 .def_constructor<float>()
                 .def_constructor<glm::vec3>()
@@ -88,19 +93,8 @@ int main(int argc, char* argv[]){
                 .def_operator<maan::eq, glm::vec3>()
                 .def_readwrite("x", &glm::vec3::x)
                 .def_readwrite("y", &glm::vec3::y)
-                .def_readwrite("z", &glm::vec3::z);
-
-            maan::function_<double, const glm::vec3&>(L, "norm", norm);
-
-        }end_module(L);
-
-        maan::class_<Foo>(L, "Foo")
-            .def_constructor<const glm::vec3&>()
-            .def_readwrite("foo_", &Foo::foo_);
-
-        maan::function_<double, const Point&>(L, "norm", norm);
-        maan::function_(L, "print_something", print_something);
-    }end_module(L);
+                .def_readwrite("z", &glm::vec3::z)
+                .endef();
         
     if(luaL_dofile(L, "test.lua")){
         printf("There was an error.\n %s\n", lua_tostring(L, -1));
