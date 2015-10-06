@@ -13,6 +13,9 @@ namespace maan{
     template<class R, typename...ArgsT, typename T = R(ArgsT...)>
     void function_(lua_State* L, const char* name, std::function<R(ArgsT...)> func);
 
+    template<class C, class R, typename...ArgsT, typename T = R(ArgsT...)>
+    void function_(lua_State* L, const char* name, R (C::*func)(ArgsT...)const, const C* singleton);
+
     struct module_{
         module_(lua_State* L):
             L_(L)
@@ -53,6 +56,12 @@ namespace maan{
         template<typename T>
         module_& function_(const char* name, T func){
             maan::function_(L_, name, func);
+            return *this;
+        }
+
+        template<typename T, typename C>
+        module_& function_(const char* name, T func, const C* singleton){
+            maan::function_(L_, name, func, singleton);
             return *this;
         }
 

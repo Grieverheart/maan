@@ -63,6 +63,11 @@ int main(int argc, char* argv[]){
     lua_State* L = luaL_newstate();
     luaL_openlibs(L);
 
+    Point* point = new Point(1.0, 5.0);
+
+    maan::module_(L, "ppp")
+        .function_("ppprint", &Point::print, point);
+
     maan::module_(L)
         .class_<Point>("Point")
             .def_constructor<double, double>()
