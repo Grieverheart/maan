@@ -65,9 +65,6 @@ int main(int argc, char* argv[]){
 
     Point* point = new Point(1.0, 5.0);
 
-    maan::module_(L, "ppp")
-        .function_("ppprint", &Point::print, point);
-
     maan::module_(L)
         .class_<Point>("Point")
             .def_constructor<double, double>()
@@ -77,11 +74,11 @@ int main(int argc, char* argv[]){
             .def_readwrite("y", &Point::y)
             .def("print", &Point::print)
             .def("norm", &Point::norm)
-            .endef()
+        .endef()
         .class_<Foo>("Foo")
             .def_constructor<const glm::vec3&>()
             .def_readwrite("foo_", &Foo::foo_)
-            .endef()
+        .endef()
         .function_("norm", (double (*)(const glm::vec3& p))norm)
         .function_("norm", (double (*)(const Point& p))norm)
         .function_("print_something", print_something)
@@ -99,7 +96,11 @@ int main(int argc, char* argv[]){
                 .def_readwrite("x", &glm::vec3::x)
                 .def_readwrite("y", &glm::vec3::y)
                 .def_readwrite("z", &glm::vec3::z)
-                .endef();
+            .endef()
+        .end_namespace_()
+        .namespace_("ppp")
+            .function_("ppprint", &Point::print, point)
+        .end_namespace_();
         
     if(luaL_dofile(L, "test.lua")){
         printf("There was an error.\n %s\n", lua_tostring(L, -1));

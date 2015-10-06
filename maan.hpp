@@ -44,8 +44,9 @@ namespace maan{
             return *this;
         }
 
-        ~module_(void){
+        module_& end_namespace_(void){
             lua_pop(L_, 1);
+            return *this;
         }
 
         template<typename T>
