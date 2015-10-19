@@ -92,6 +92,7 @@ int main(int argc, char* argv[]){
                 .def_operator<maan::sub, glm::vec3>()
                 .def_operator<maan::sub, float>()
                 .def_operator<maan::mul, float>()
+                .def_operator<maan::mul, glm::vec3>()
                 .def_operator<maan::eq, glm::vec3>()
                 .def_readwrite("x", &glm::vec3::x)
                 .def_readwrite("y", &glm::vec3::y)
