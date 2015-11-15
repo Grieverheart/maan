@@ -59,6 +59,10 @@ void print_something(const std::string& something){
     printf("Something: %s!\n", something.c_str());
 }
 
+std::string get_string(void){
+    return "Hello";
+}
+
 int main(int argc, char* argv[]){
     
     lua_State* L = luaL_newstate();
@@ -83,6 +87,7 @@ int main(int argc, char* argv[]){
         .function_("norm", (double (*)(const glm::vec3& p))norm)
         .function_("norm", (double (*)(const Point& p))norm)
         .function_("print_something", print_something)
+        .function_("get_string", get_string)
         .namespace_("glm")
             .class_<glm::vec3>("vec3")
                 .def_constructor<float, float, float>()

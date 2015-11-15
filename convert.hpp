@@ -49,6 +49,10 @@ namespace maan{
         lua_pushstring(L, val);
     }
 
+    void push_LuaValue(lua_State* L, const std::string& val){
+        lua_pushstring(L, val.c_str());
+    }
+
     template<class T>
     EnableIf<std::is_integral<T>,
     void> push_LuaValue(lua_State* L, T val){
