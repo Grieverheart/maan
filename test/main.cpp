@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cmath>
+#include <string>
 
 extern "C"{
 #include <lua.h>
@@ -54,8 +55,8 @@ double norm(const glm::vec3& p){
     return sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
 }
 
-void print_something(void){
-    printf("Something!\n");
+void print_something(const std::string& something){
+    printf("Something: %s!\n", something.c_str());
 }
 
 int main(int argc, char* argv[]){
